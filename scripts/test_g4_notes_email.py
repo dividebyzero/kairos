@@ -405,7 +405,9 @@ class EmailAccountTests(EmailBase):
             if user == "a@x.com":
                 raise email_module.imaplib.IMAP4.error("LOGIN failed")
         fake.login.side_effect = login
-        fake.search.return_value = ("OK", [b""])
+        fake.select.return_value = ("OK", [b"0"])
+        fake.response.return_value = ("UIDVALIDITY", [b"1"])
+        fake.uid.return_value = ("OK", [b""])
         with patch.object(email_module.imaplib, "IMAP4_SSL", imap):
             ra = self.api.get(f"/api/email/accounts/{a['id']}/messages")
             rb = self.api.get(f"/api/email/accounts/{b['id']}/messages")

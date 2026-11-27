@@ -22,6 +22,43 @@
     { id: "s2", title: "Planning the week ahead", updated_at: now - 5000 },
     { id: "s3", title: "Connecting ideas across the vault", updated_at: now - 80000 },
   ];
+  // The Email workspace (state.emailWorkspace): one sample IMAP account with synthetic mail.
+  const mailAccount = { id: "mail1", email: "alex@example.test", imap_host: "imap.example.test", imap_port: 993,
+    smtp_host: "smtp.example.test", smtp_port: 465, smtp_security: "ssl", created_at: now - 86400 * 30, owner: "demo" };
+  const mailRef = (folder, uid) => `imap:mail1:${btoa(unescape(encodeURIComponent(folder))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}:7:${uid}`;
+  const mailFolders = [
+    { path: "INBOX", name: "Inbox", depth: 0, delimiter: "/", role: "inbox", selectable: true, unread: 3, total: 24 },
+    { path: "Drafts", name: "Drafts", depth: 0, delimiter: "/", role: "drafts", selectable: true, unread: 0, total: 1 },
+    { path: "Sent", name: "Sent", depth: 0, delimiter: "/", role: "sent", selectable: true, unread: 0, total: 18 },
+    { path: "Archive", name: "Archive", depth: 0, delimiter: "/", role: "archive", selectable: true, unread: 0, total: 6 },
+    { path: "Projects", name: "Projects", depth: 0, delimiter: "/", role: null, selectable: false, unread: null, total: null },
+    { path: "Projects/Garden", name: "Garden", depth: 1, delimiter: "/", role: null, selectable: true, unread: 1, total: 4 },
+    { path: "Trash", name: "Trash", depth: 0, delimiter: "/", role: "trash", selectable: true, unread: 0, total: 0 },
+  ];
+  const mailPeople = [["Sam Rivera", "sam@example.test"], ["Priya Nair", "priya@example.test"], ["Garden club", "news@garden.example"],
+    ["Jordan Lee", "jordan@example.test"], ["Studio bookings", "bookings@studio.example"], ["Mia Chen", "mia@example.test"]];
+  const mailSubjects = ["Project check-in this afternoon", "Draft agenda for Thursday", "Seed order confirmed", "Photos from the weekend",
+    "Invoice 2026-114", "Can we move our call?", "Notes from the planning session", "Your booking for next week"];
+  const mailMessages = (folder = "INBOX") => {
+    const count = { INBOX: 24, Archive: 6, Sent: 18, Drafts: 1, "Projects/Garden": 4 }[folder] || 0;
+    return Array.from({ length: count }, (_, i) => {
+      const uid = count - i;
+      const [name, address] = mailPeople[uid % mailPeople.length];
+      const when = new Date((now - i * 5400 - 1800) * 1000);
+      return { ref: mailRef(folder, uid), uid, from: { name, address }, from_header: `${name} <${address}>`,
+        to: [{ name: "Alex", address: "alex@example.test" }], cc: [], subject: uid === 24 ? mailSubjects[0] : mailSubjects[uid % mailSubjects.length],
+        date: when.toISOString(), ts: when.getTime() / 1000, date_header: when.toUTCString(), message_id: `<m${uid}@example.test>`,
+        seen: folder !== "INBOX" || uid < 22, flagged: uid === 20, answered: false, has_attachments: uid % 5 === 0, size: 4200 + uid * 37 };
+    });
+  };
+  const mailBody = (message) => ({ ...message, account_id: "mail1", folder: "INBOX", truncated: false, in_reply_to: "", references: "",
+    reply_to: [], cc: message.uid === 24 ? [{ name: "Priya Nair", address: "priya@example.test" }] : [],
+    remote_images: message.uid === 24 ? 2 : 0,
+    attachments: message.has_attachments ? [{ part: 3, filename: "Garden plan.pdf", content_type: "application/pdf", size: 482113, inline: false }] : [],
+    text: `Hi Alex,\n\n${message.subject}. Here are the details we talked about, and the plan is at https://example.test/plan.\n\nThanks,\n${message.from.name}`,
+    html: message.uid % 2 === 0 ? `<div style="font-family:Georgia,serif;color:#333"><p>Hi Alex,</p><p><b>${message.subject}.</b> Here are the details we talked about.</p>`
+      + `<table cellpadding="6" style="border-collapse:collapse;border:1px solid #ddd"><tr><td>When</td><td>Thursday, 2 pm</td></tr><tr><td>Where</td><td>Studio B</td></tr></table>`
+      + `<p>The full plan is <a href="https://example.test/plan" target="_blank" rel="noopener noreferrer">on the shared page</a>.</p><p>Thanks,<br>${message.from.name}</p></div>` : null });
   const projects = [{ id: "p1", name: "Workspace design", document_ids: ["d1", "d2"], instructions: "Keep it clear." }];
   const forgeProjects = [
     { id: 'fp1', name: 'Kairos garden', path: 'C:\\Users\\Alex\\Documents\\Kairos Projects\\garden', added_at: now - 90000, last_opened_at: now - 600 },
@@ -1458,8 +1495,22 @@
       if (skill) return { ...skill, body: skill.body || `## When to Use\n${skill.description}\n\n## Procedure\nReview the inputs, follow the skill and report the result.` };
     }
     if (route.startsWith("/api/vault/") || route.startsWith("/api/file-checkpoints/vault-")) { const answer = vaultRoute(route, url); if (answer !== undefined) return answer; }
-    if (route === "/api/email/triage") return { generated_at: now, scanned: 12, items: state.empty ? [] : [{ subject: "Project check-in this afternoon", from: "team@example.test", reason: "An upcoming meeting needs your review." }] };
-    if (route === "/api/email/accounts") return [];
+    if (route === "/api/email/triage") return { generated_at: now, scanned: 12, items: state.empty ? [] : [{ subject: "Project check-in this afternoon", from: "team@example.test", reason: "An upcoming meeting needs your review.",
+      ...(state.emailWorkspace ? { ref: mailRef("INBOX", 24) } : {}) }] };
+    if (route === "/api/email/accounts") return state.emailWorkspace && !state.empty ? [mailAccount] : [];
+    if (state.emailWorkspace && route === `/api/email/accounts/${mailAccount.id}/folders`) return { folders: mailFolders };
+    if (state.emailWorkspace && route === `/api/email/accounts/${mailAccount.id}/mailbox`) {
+      const folder = url.searchParams.get("folder") || "INBOX";
+      const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+      const size = Math.min(100, Number(url.searchParams.get("page_size")) || 50);
+      const q = (url.searchParams.get("q") || "").toLowerCase();
+      const hits = mailMessages(folder).filter(m => !q || q.split(/\s+/).every(w => `${m.subject} ${m.from.name} ${m.from.address}`.toLowerCase().includes(w)));
+      return { folder, page, page_size: size, total: hits.length, query: q, messages: hits.slice((page - 1) * size, page * size) };
+    }
+    if (state.emailWorkspace && route === "/api/email/message") {
+      const message = mailMessages().concat(mailMessages("Archive")).find(m => m.ref === url.searchParams.get("ref"));
+      return message ? mailBody(message) : { _status: 404, detail: "Email not found" };
+    }
     if (route === "/api/email/sending-accounts") return { google_configured: true, accounts: [
       { email: "demo@example.com", via: "Google", id: "acct_demo", can_send: true, note: "" },
       { email: "coach.demo@example.com", via: "Google", id: "acct_coach", can_send: false, note: "reconnect it in Library to allow sending" },

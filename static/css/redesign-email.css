@@ -14,19 +14,20 @@
   --rde-tint: color-mix(in srgb, var(--point) 14%, transparent);
 }
 
-/* -- Layout: Important today on the left, the accounts and the connect form on the right ---- */
-.kairos-redesign .email-view {
-  max-width: 1060px;
+/* -- Layout: the overview ("Important today") puts triage on the left, accounts and the connect form on the right.
+   It lives in the workspace's main pane (email-workspace.css). */
+.kairos-redesign .email-view > .view-header { padding-bottom: 6px; margin-bottom: 0; }
+.kairos-redesign .email-overview {
   display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); column-gap: 20px; row-gap: 16px; align-items: start;
   /* The last row takes the slack, so a tall triage card never stretches the right column. */
-  grid-template-rows: auto auto auto 1fr;
+  grid-template-rows: auto auto 1fr;
 }
-.kairos-redesign .email-view > * { margin: 0 !important; min-width: 0; }
-.kairos-redesign .email-view > .view-header { grid-column: 1 / -1; padding-bottom: 6px; margin-bottom: 0; }
-.kairos-redesign .email-view > #email-triage { grid-column: 1; grid-row: 2 / 5; }
-.kairos-redesign .email-view > #email-sending { grid-column: 2; grid-row: 2; }
-.kairos-redesign .email-view.email-view > details.disclosure-panel { grid-column: 2; grid-row: 3; }
-.kairos-redesign .email-view > #email-accounts-list { grid-column: 2; grid-row: 4; }
+.kairos-redesign .email-overview[hidden] { display: none; }
+.kairos-redesign .email-overview > * { margin: 0 !important; min-width: 0; }
+.kairos-redesign .email-overview > #email-triage { grid-column: 1; grid-row: 1 / 4; }
+.kairos-redesign .email-overview > #email-sending { grid-column: 2; grid-row: 1; }
+.kairos-redesign .email-overview > details.disclosure-panel { grid-column: 2; grid-row: 2; }
+.kairos-redesign .email-overview > #email-accounts-list { grid-column: 2; grid-row: 3; }
 .kairos-redesign .email-view > .view-header h2 { font-size: clamp(36px, 4.2vw, 52px); }
 .kairos-redesign .email-view > .view-header .sub { margin-top: 8px; font-size: 15px; }
 
@@ -128,11 +129,11 @@
 
 /* -- Phones ---------------------------------------------------------------------------------------------- */
 @media (max-width: 900px) {
-  .kairos-redesign .email-view { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .kairos-redesign .email-view > #email-triage,
-  .kairos-redesign .email-view > #email-sending,
-  .kairos-redesign .email-view.email-view > details.disclosure-panel,
-  .kairos-redesign .email-view > #email-accounts-list { grid-column: 1; grid-row: auto; }
+  .kairos-redesign .email-overview { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .kairos-redesign .email-overview > #email-triage,
+  .kairos-redesign .email-overview > #email-sending,
+  .kairos-redesign .email-overview > details.disclosure-panel,
+  .kairos-redesign .email-overview > #email-accounts-list { grid-column: 1; grid-row: auto; }
 }
 @media (max-width: 768px) {
   .kairos-redesign .email-triage-card { padding: 16px 16px 8px; }
@@ -153,7 +154,7 @@
    lays its messages out as a grid of cards, each with the subject, sender, time
    and the reason it matters, so a wide window shows more at once. */
 @media (min-width: 769px) {
-  .kairos-redesign .email-view { max-width: none; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); column-gap: 24px; }
+  .kairos-redesign .email-overview { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); column-gap: 24px; }
   .kairos-redesign .email-triage-card { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px 14px; align-content: start; padding: 22px 24px 24px; }
   .kairos-redesign .email-triage-card > :not(.email-item) { grid-column: 1 / -1; }
   .kairos-redesign .email-triage-card > .card-row { padding-bottom: 0; }
@@ -169,8 +170,9 @@
   .kairos-redesign .email-item .email-item-reason { display: block; padding: 0; background: transparent; color: var(--rd-ink-dim) !important; }
 }
 @media (min-width: 769px) and (max-width: 1100px) {
-  .kairos-redesign .email-view { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .kairos-redesign .email-view > #email-triage,
-  .kairos-redesign .email-view.email-view > details.disclosure-panel,
-  .kairos-redesign .email-view > #email-accounts-list { grid-column: 1; grid-row: auto; }
+  .kairos-redesign .email-overview { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .kairos-redesign .email-overview > #email-triage,
+  .kairos-redesign .email-overview > #email-sending,
+  .kairos-redesign .email-overview > details.disclosure-panel,
+  .kairos-redesign .email-overview > #email-accounts-list { grid-column: 1; grid-row: auto; }
 }
