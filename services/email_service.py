@@ -113,39 +113,14 @@ class EmailService:
         self, account_id: str, folder: str = "INBOX", limit: int = 20,
         unseen_only: bool = False, since: Optional[date] = None,
     ) -> list[dict]:
-        account = self.get_account(account_id, decrypted=True)
-        if account is None:
+        """Newest first, by real UID, with the workspace reference (services/mailbox.py)."""
+        if self.get_account(account_id) is None:
             raise KeyError(f"no such account: {account_id}")
-        password = decrypt(account["password_encrypted"])
-
-        criteria = []
-        if unseen_only:
-            criteria.append("UNSEEN")
-        if since is not None:
-            criteria.append(f'SINCE "{since.strftime("%d-%b-%Y")}"')
-
-        messages = []
-        with imaplib.IMAP4_SSL(account["imap_host"], account["imap_port"], timeout=10) as imap:
-            imap.login(account["email"], password)
-            imap.select(folder, readonly=True)
-            status, data = imap.search(None, *(criteria or ["ALL"]))
-            if status != "OK":
-                return []
-            ids = data[0].split()[-max(1, min(int(limit), 200)):]  # [-0:] would be the whole mailbox
-            for msg_id in reversed(ids):
-                status, msg_data = imap.fetch(msg_id, "(FLAGS RFC822.HEADER)")
-                if status != "OK" or not msg_data or not msg_data[0]:
-                    continue
-                seen = b"\\Seen" in (msg_data[0][0] or b"")
-                msg = email.message_from_bytes(msg_data[0][1])
-                messages.append({
-                    "uid": msg_id.decode(),
-                    "from": _decode_header(msg.get("From", "")),
-                    "subject": _decode_header(msg.get("Subject", "")),
-                    "date": msg.get("Date", ""),
-                    "seen": seen,
-                })
-        return messages
+        from services import mailbox
+        page = mailbox.list_messages(account_id, folder, page=1, page_size=max(1, min(int(limit), 200)),
+                                     unseen_only=unseen_only, since=since)
+        return [{"uid": str(m["uid"]), "ref": m["ref"], "from": m["from_header"], "subject": m["subject"],
+                 "date": m["date_header"], "seen": m["seen"]} for m in page["messages"]]
 
     def list_watch_messages(self, account_id: str, *, since: float, limit: int = 100) -> list[dict]:
         """Stable UID headers for the watch. Keep the Email tab's API intact.

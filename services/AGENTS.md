@@ -22,6 +22,9 @@ Domain logic behind the routes. Routes stay thin and call these; these call
   `store_publish.py`, `remote_skill_source.py`.
 - **Personal data:** `notes_service.py`, `calendar_service.py`,
   `email_service.py`, `documents_service.py`, `home_week.py`.
+- **Email workspace:** `mailbox.py` (folders, paged search and reading by
+  message reference, one interface per provider) and `mail_html.py` (the
+  reader's HTML allowlist).
 - **Models and devices:** `model_setup.py`, `cookbook_service.py`,
   `mobile_notifications.py`, `bot_push.py`, `github_account.py`.
 

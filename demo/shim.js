@@ -11,7 +11,7 @@
 (function () {
   // Device sign-in, model setup/install progress and public submissions are
   // synthetic in-memory fixtures. Vendor apps never launch in the demo.
-  const state = { empty: false, githubSignedIn: false, githubConfigured: true };
+  const state = { empty: false, githubSignedIn: false, githubConfigured: true, emailWorkspace: true };
   const { fixture, data, mutate, media } = window.kairosFixtures({ state, demo: true });
   const store = { sessions: {}, nextId: 1 };  // chats started in the demo
   const realFetch = window.fetch.bind(window);

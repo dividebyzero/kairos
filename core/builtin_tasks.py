@@ -322,7 +322,7 @@ async def _run_triage_email() -> str:
             m = messages[idx]
             items.append({
                 "from": m.get("from"), "subject": m.get("subject"), "date": m.get("date"),
-                "account": m.get("account"), "reason": reason.strip()[:300],
+                "account": m.get("account"), "reason": reason.strip()[:300], "ref": m.get("ref"),
             })
 
     core_email_triage.save(items, len(messages), error="; ".join(errors) or None)

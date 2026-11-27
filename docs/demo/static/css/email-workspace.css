@@ -1,0 +1,138 @@
+/* The Email workspace: folder rail, message list and reader (static/js/emailWorkspace.js). */
+.kairos-redesign #view-content[data-view="email"] .email-view { max-width: none; }
+
+.email-workspace { display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 16px; align-items: start; }
+.email-main { min-width: 0; }
+.email-workspace.email-workspace-empty { grid-template-columns: minmax(0, 1fr); }
+.email-workspace-empty > .email-rail { display: none; }
+.email-glyph { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; }
+.email-glyph svg { width: 100%; height: 100%; }
+
+/* -- Rail ---------------------------------------------------------------------------------------- */
+.email-rail {
+  position: sticky; top: 12px; max-height: calc(100dvh - 140px); overflow: auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 14px; padding: 12px;
+  border: 1px solid var(--rd-line); border-radius: var(--rd-radius-card); background: var(--rd-surface-solid);
+}
+.email-rail-group { display: grid; gap: 4px; min-width: 0; }
+.email-rail-account {
+  margin: 0; padding: 0 10px; font: 500 12.5px var(--rd-font-ui); color: var(--rd-ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.email-rail-folders { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.email-rail-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px;
+  padding: 6px 10px 6px calc(10px + var(--depth, 0) * 14px);
+  border: 0; border-radius: 10px; background: transparent; color: var(--rd-ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.email-rail-item:hover { background: var(--rd-ground); }
+.email-rail-item[aria-current="page"] { background: color-mix(in srgb, var(--point) 16%, transparent); font-weight: 500; }
+.email-rail-item:focus-visible, .email-row:focus-visible, .email-item-open:focus-visible { outline: 2px solid var(--rd-focus); outline-offset: -2px; }
+.email-rail-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.email-rail-count {
+  flex: none; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--rd-ground);
+  font-size: 12px; font-variant-numeric: tabular-nums; text-align: center;
+}
+.email-rail-parent { padding: 6px 10px 2px calc(10px + var(--depth, 0) * 14px); font-size: 12px; color: var(--rd-ink-dim); }
+.email-rail-note { padding: 4px 10px; font-size: 12.5px; }
+
+/* -- Message list ---------------------------------------------------------------------------------- */
+.email-browser { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.email-browser[hidden] { display: none; }
+.email-list-pane, .email-reader { min-width: 0; border: 1px solid var(--rd-line); border-radius: var(--rd-radius-card); background: var(--rd-surface-solid); }
+.email-list-pane { display: flex; flex-direction: column; position: sticky; top: 12px; max-height: calc(100dvh - 140px); }
+.email-pane-head { display: flex; align-items: center; gap: 8px; padding: 14px 14px 8px; }
+.email-pane-title { flex: 1; min-width: 0; }
+.email-folder-title {
+  margin: 0; font-family: var(--rd-font-title); font-style: italic; font-weight: 500; font-size: 24px; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.email-folder-account { margin-top: 2px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.email-icon-btn { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+.email-search { padding: 0 14px 10px; }
+.email-search-input { width: 100%; box-sizing: border-box; min-height: 38px; }
+.email-list-status { padding: 0 14px 6px; font-size: 12.5px; color: var(--rd-ink-dim); }
+.email-list-status:empty { display: none; }
+.email-list { list-style: none; margin: 0; padding: 4px 6px; overflow: auto; flex: 1; min-height: 0; }
+.email-list[aria-busy="true"] { opacity: .6; }
+.email-list > li + li { border-top: 1px solid var(--rd-line); }
+.email-row {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-areas: "dot from date" ". subject marks";
+  column-gap: 8px; row-gap: 2px; width: 100%; padding: 10px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--rd-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.email-row:hover { background: var(--rd-ground); }
+.email-row[aria-current="true"] { background: color-mix(in srgb, var(--point) 16%, transparent); }
+.email-row-dot { grid-area: dot; align-self: center; width: 8px; height: 8px; border-radius: 50%; }
+.email-row.unread .email-row-dot { background: var(--accent); }
+.email-row-from { grid-area: from; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.email-row-date { grid-area: date; font-size: 12px; color: var(--rd-ink-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.email-row-subject { grid-area: subject; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--rd-ink-dim); }
+.email-row.unread :is(.email-row-from, .email-row-subject) { font-weight: 600; color: var(--rd-ink); }
+.email-row-marks { grid-area: marks; display: flex; gap: 4px; color: var(--rd-ink-dim); }
+.email-row-marks .email-glyph { width: 15px; height: 15px; }
+.email-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px 12px; border-top: 1px solid var(--rd-line); }
+.email-pager-buttons { display: flex; gap: 4px; }
+.email-list-error { padding: 14px; }
+.kairos-redesign :is(.email-list-empty, .email-reader) .rd-empty-state { border: 0; background: transparent; }
+
+/* -- Reader ---------------------------------------------------------------------------------------- */
+.email-reader { padding: 20px 24px 28px; min-height: 320px; }
+.email-reader[aria-busy="true"] .email-reader-loading { margin: 0; }
+.email-reader-subject {
+  margin: 0 0 12px; font-family: var(--rd-font-title); font-style: italic; font-weight: 500; font-size: 28px; line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.email-reader-subject:focus { outline: none; }
+.email-reader-meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0 0 14px; font-size: 13.5px; }
+.email-reader-meta dt { color: var(--rd-ink-dim); }
+.email-reader-meta dd { margin: 0; overflow-wrap: anywhere; }
+.email-attachments { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; }
+.email-attachment {
+  display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 6px 10px;
+  border: 1px solid var(--rd-line); border-radius: 10px; background: var(--rd-ground); font-size: 13px;
+}
+.email-attachment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.email-notice { margin: 0 0 12px; font-size: 12.5px; }
+.email-body-toggle { display: flex; gap: 4px; margin: 0 0 10px; }
+.email-body-toggle .btn[aria-pressed="true"] { background: var(--rd-ground); color: var(--rd-ink); }
+.email-body { border-top: 1px solid var(--rd-line); padding-top: 16px; }
+/* Email HTML is written for white paper, as every mail client shows it. */
+.email-frame { display: block; width: 100%; height: 240px; border: 0; border-radius: 10px; background: #fff; }
+.email-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 14.5px/1.55 var(--rd-font-ui); color: var(--rd-ink); }
+.email-reader-error { display: grid; gap: 10px; justify-items: start; }
+.email-back { display: none; align-items: center; gap: 4px; }
+.email-back .email-glyph { width: 16px; height: 16px; }
+.email-item-open {
+  display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+}
+.email-item-open:hover { text-decoration-color: currentColor; }
+
+/* -- Narrower windows: the list or the reader beside the rail ---------------------------------------- */
+@media (max-width: 1100px) {
+  .email-browser { grid-template-columns: minmax(0, 1fr); }
+  .email-workspace[data-pane="reader"] .email-list-pane { display: none; }
+  .email-workspace:not([data-pane="reader"]) .email-reader { display: none; }
+  .email-back-list { display: inline-flex; margin: -6px 0 8px -8px; }
+  .email-list-pane { position: static; max-height: none; }
+  .email-list { overflow: visible; }
+}
+
+/* -- Phones: one pane at a time; the rail sits above "Important today" ------------------------------- */
+@media (max-width: 768px) {
+  .email-workspace { grid-template-columns: minmax(0, 1fr); }
+  .email-workspace:is([data-pane="list"], [data-pane="reader"]) .email-rail { display: none; }
+  .email-workspace[data-pane="rail"] .email-main { display: none; }
+  .email-rail { position: static; max-height: none; }
+  .email-back-folders { display: inline-flex; }
+  /* The page filter only narrows what is on screen; a folder has its own server search. */
+  .email-view:has(> .email-workspace:is([data-pane="list"], [data-pane="reader"])) > :is(.ms-page-search, .ms-page-search-note) { display: none; }
+  .email-rail-item, .email-row, .email-back, .email-pager .btn, .email-body-toggle .btn { min-height: 44px; }
+  .email-icon-btn { width: 44px; height: 44px; }
+  .email-search-input { min-height: 44px; font-size: 16px; }
+  .email-reader { padding: 16px; }
+  .email-reader-subject { font-size: 24px; }
+  .email-reader-meta { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .email-reader-meta dd { margin-bottom: 6px; }
+}

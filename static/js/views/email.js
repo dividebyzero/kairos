@@ -3,8 +3,9 @@ import { workspaceConfirm as confirmDialog, workspaceEmpty as emptyState, worksp
 import { ICONS } from "../icons.js";
 import { createMascot } from '../mascot.js';
 import { phoneDetails } from '../phoneRowDetails.js';
+import { emailWorkspace } from '../emailWorkspace.js';
 
-export async function render(container) {
+export async function render(container, _tabId, options = {}) {
   container.innerHTML = "";
 
   const wrap = el("div", { class: "view-constrained email-view" });
@@ -43,14 +44,19 @@ export async function render(container) {
   const list = el("div", { id: "email-accounts-list", class: 'rd-stagger', style: "margin-top:14px;" });
   const triage = el("div", { id: "email-triage", class: 'rd-stagger', style: "margin-top:14px;" });
   const sending = el("div", { id: "email-sending", style: "margin-top:14px;" });
-  wrap.append(header, triage, sending, form, list);
+  // "Important today" and account setup are the workspace's overview; folders open beside it.
+  const overview = el("div", { class: "email-overview" }, [triage, sending, form, list]);
+  const workspace = emailWorkspace(overview);
+  wrap.append(header, workspace.node);
   container.append(wrap);
+  const open = (ref) => workspace.openRef(ref).catch((e) => toast(`Could not open that email: ${e.message.replace(/^\d+:\s*/, "")}`, "error"));
   const accounts = el('button', { type: 'button', class: 'btn email-accounts-trigger', 'aria-label': 'Accounts', text: 'Accounts', onclick: () => {
   if (window.matchMedia('(max-width: 768px)').matches) { phoneDetails('Email accounts', [sending, form, list], accounts); return; }
+  workspace.showOverview();
   form.open = !form.open; if (form.open) emailInput.focus();
   } });
   accounts.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/><path d="M5 20c1-3.5 3.8-5 7-5s6 1.5 7 5"/></svg>'); header.append(accounts);
-  refreshTriage(triage);
+  refreshTriage(triage, open);
   refreshSending(sending, form);
 
   addBtn.addEventListener("click", async () => {
@@ -72,19 +78,23 @@ export async function render(container) {
       }),
     });
     emailInput.value = ""; passInput.value = ""; imapHost.value = ""; smtpHost.value = "";
-    await refresh(list, emailInput);
+    await refresh(list, emailInput, workspace);
     refreshSending(sending, form);
     toast("Account added", "success");
   });
 
-  await refresh(list, emailInput);
+  const connected = await refresh(list, emailInput, workspace);
+  // With mail connected the tab opens on the first inbox, or on a message it was sent to.
+  if (options.ref) open(options.ref);
+  else if (connected.length) workspace.openFolder(connected[0].id, "INBOX", "Inbox");
+  return () => workspace.dispose();
 }
 
 // "Show the messages it deems important, daily" (David's ask 2026-09-06).
 // Reads the stored result of the 05:50 Triage Email task rather than scoring
 // on every tab open — that keeps a model call off the page load, and "daily"
 // is what was asked for. The button forces a fresh pass when you want one.
-async function refreshTriage(host) {
+async function refreshTriage(host, open) {
   host.innerHTML = "";
   let data;
   try {
@@ -99,7 +109,7 @@ async function refreshTriage(host) {
     try {
       const res = await api("/api/email/triage/run", { method: "POST" });
       toast(res.summary || "Triage complete", "success");
-      await refreshTriage(host);
+      await refreshTriage(host, open);
     } catch (e) {
       toast(`Triage failed: ${e.message}`, "error");
       runBtn.disabled = false;
@@ -130,7 +140,9 @@ async function refreshTriage(host) {
       body.push(el("div", { class: "email-item", "data-mobile-row": "", style: "padding:9px 0;border-top:1px solid var(--border);" }, [
         el("span", { class: "email-item-avatar", "aria-hidden": "true", text: (String(it.from || "").match(/[A-Za-z0-9]/) || ["?"])[0].toUpperCase() }),
         el("div", { class: "email-item-body" }, [
-          el("div", { class: "title", style: "font-size:12.5px;", text: it.subject || "(no subject)" }),
+          it.ref
+            ? el("button", { type: "button", class: "title email-item-open", style: "font-size:12.5px;", text: it.subject || "(no subject)", onclick: () => open(it.ref) })
+            : el("div", { class: "title", style: "font-size:12.5px;", text: it.subject || "(no subject)" }),
           el("div", { class: "meta email-item-from", style: "margin-top:2px;" }, [
             el('span', { text: it.from || '' }),
             it.date ? el('time', { class: 'email-item-time', text: it.date }) : null,
@@ -239,8 +251,9 @@ async function refreshSending(host, form) {
   ]));
 }
 
-async function refresh(list, focusTarget) {
+async function refresh(list, focusTarget, workspace) {
   const accounts = await api("/api/email/accounts");
+  workspace.setAccounts(accounts);
   list.innerHTML = "";
   if (accounts.length === 0) {
     list.appendChild(emptyState({
@@ -250,7 +263,7 @@ async function refresh(list, focusTarget) {
       actionLabel: "Connect an account",
       onAction: () => { if (focusTarget) { focusTarget.closest("details").open = true; focusTarget.focus(); } },
     }));
-    return;
+    return accounts;
   }
   for (const account of accounts) {
     const statusEl = el("span", { class: "meta", text: "" });
@@ -281,7 +294,7 @@ async function refresh(list, focusTarget) {
       });
       if (!ok) return;
       await api(`/api/email/accounts/${account.id}`, { method: "DELETE" });
-      await refresh(list, focusTarget);
+      await refresh(list, focusTarget, workspace);
       toast("Account removed", "success");
     }, { danger: true });
 
@@ -297,4 +310,5 @@ async function refresh(list, focusTarget) {
     ]);
     list.appendChild(card);
   }
+  return accounts;
 }

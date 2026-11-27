@@ -1,10 +1,14 @@
 """Email account CRUD + connection test + inbox list + send — the Email tab."""
+import asyncio
+import imaplib
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from core import builtin_tasks, email_triage
 from core.auth import auth_manager
 from core.middleware import require_admin, require_user
+from services import mailbox
 from services.email_service import email_service
 
 router = APIRouter(prefix="/api/email", tags=["email"])
@@ -123,3 +127,44 @@ async def send_message(body: SendRequest, account_id: str = Depends(owned_accoun
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"SMTP error: {e}")
     return {"ok": True}
+
+
+# -- The Email workspace: folders, a paged and searchable list, and the reader (services/mailbox.py).
+
+async def _mail(call, *args, **kwargs):
+    """Runs a blocking mailbox call off the event loop and names what went wrong."""
+    try:
+        return await asyncio.to_thread(call, *args, **kwargs)
+    except mailbox.StaleReference as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e.args[0]) if e.args else "not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (mailbox.MailboxError, imaplib.IMAP4.error, OSError) as e:
+        raise HTTPException(status_code=502, detail=f"The mail server did not answer: {str(e)[:300]}")
+
+
+@router.get("/accounts/{account_id}/folders")
+async def list_folders(account_id: str = Depends(owned_account), user: str = Depends(require_user)) -> dict:
+    return {"folders": await _mail(mailbox.list_folders, account_id)}
+
+
+@router.get("/accounts/{account_id}/mailbox")
+async def browse_folder(folder: str = Query("INBOX", min_length=1, max_length=1000),
+                        page: int = Query(1, ge=1, le=100_000), page_size: int = Query(mailbox.PAGE_SIZE, ge=1, le=100),
+                        q: str = Query("", max_length=mailbox.QUERY_MAX_CHARS),
+                        account_id: str = Depends(owned_account), user: str = Depends(require_user)) -> dict:
+    return await _mail(mailbox.list_messages, account_id, folder, page=page, page_size=page_size, query=q)
+
+
+@router.get("/message")
+async def read_message(ref: str = Query(..., min_length=1, max_length=2000), user: str = Depends(require_user)) -> dict:
+    """One message for the reader. The reference names its account, which must be the caller's."""
+    try:
+        account = email_service.get_account(mailbox.account_of(ref))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if account is None or not _can_see(account, user):
+        raise HTTPException(status_code=404, detail="Email not found")
+    return await _mail(mailbox.read_message, ref)

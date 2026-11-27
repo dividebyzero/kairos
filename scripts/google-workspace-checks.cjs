@@ -38,7 +38,7 @@ module.exports = async ({ js: rendererJs, waitFor, capture, navigate, overflow, 
   await waitFor("document.querySelector('.email-view details.disclosure-panel')?.open === true");
   assert.deepEqual(await overflow(), [], label + ' Email sending accounts fit');
   // Every Email section spans the view: a stale grid placement squeezes the page without overflowing.
-  const narrow = await js("(() => { const view = document.querySelector('.email-view').clientWidth; return ['#email-triage', '#email-sending', '.email-view > details.disclosure-panel'].filter(s => document.querySelector(s).getBoundingClientRect().width < view * (innerWidth > 900 ? 0.25 : 0.9)); })()");
+  const narrow = await js("(() => { const view = document.querySelector('.email-view').clientWidth; return ['#email-triage', '#email-sending', '.email-overview > details.disclosure-panel'].filter(s => document.querySelector(s).getBoundingClientRect().width < view * (innerWidth > 900 ? 0.25 : 0.9)); })()");
   assert.deepEqual(narrow, [], label + ' Email sections are full width');
   await capture(label + '-email-sending-accounts');
   await js("document.querySelector('.email-view details.disclosure-panel').open = false");
